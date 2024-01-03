@@ -1,5 +1,4 @@
 FROM alpine
-MAINTAINER Juan Manuel Vera - verajm@gmail.com
 
 ENV ZEROTIER_VERSION=1.4.6
 
@@ -17,6 +16,7 @@ RUN set -eux; \
         iptables\
         openrc \
         curl \
+        jq \
     ;\
     wget https://github.com/zerotier/ZeroTierOne/archive/$ZEROTIER_VERSION.zip -O /zerotier.zip; \
     unzip /zerotier.zip -d /; \
