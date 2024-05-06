@@ -3,6 +3,8 @@
 #zerotier-one
 supervisord -c /etc/supervisor/supervisord.conf
 
+[ -z "$ZTHOSTNAME" ] && echo "ZTHOSTNAME is empty, stopping" && exit 1
+
 for NETWORK_ID in $(echo $NETWORK_IDS | sed 's/,/\t/g')
 do
   # Remove all nodes with this hostname from zerotier (avoid ip collisions)
@@ -54,12 +56,14 @@ do
   done
   echo "Zerotier successfuly joined by $HOST_ID"
 
-  CURR_IPS=$( curl -X GET -H "Authorization: Bearer $ZTAUTHTOKEN" https://api.zerotier.com/api/v1/network/$NETWORK_ID/member/$HOST_ID | jq ".config.ipAssignments" | jq ". += [\"$ZTSTATICIP\"]")
-  echo "Assigning static ip $ZTSTATICIP to $HOST_ID and reauthenticating"
-  curl -s -XPOST \
-      -H "Authorization: Bearer $ZTAUTHTOKEN" \
-      -d "{\"config\":{\"ipAssignments\":$CURR_IPS,\"authorized\":true}}" \
-      "https://my.zerotier.com/api/network/$NETWORK_ID/member/$HOST_ID"
+  if [ -n "$ZTSTATICIP" ]; then
+    CURR_IPS=$( curl -X GET -H "Authorization: Bearer $ZTAUTHTOKEN" https://api.zerotier.com/api/v1/network/$NETWORK_ID/member/$HOST_ID | jq ".config.ipAssignments" | jq ". += [\"$ZTSTATICIP\"]")
+    echo "Assigning static ip $ZTSTATICIP to $HOST_ID and reauthenticating"
+    curl -s -XPOST \
+        -H "Authorization: Bearer $ZTAUTHTOKEN" \
+        -d "{\"config\":{\"ipAssignments\":$CURR_IPS,\"authorized\":true}}" \
+        "https://my.zerotier.com/api/network/$NETWORK_ID/member/$HOST_ID"
+  fi
 
   sleep 5
   echo "Final Node $HOST_ID info: "
