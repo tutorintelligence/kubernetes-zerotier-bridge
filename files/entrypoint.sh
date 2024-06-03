@@ -5,8 +5,31 @@ supervisord -c /etc/supervisor/supervisord.conf
 
 [ -z "$ZTHOSTNAME" ] && echo "ZTHOSTNAME is empty, stopping" && exit 1
 
-for NETWORK_ID in $(echo $NETWORK_IDS | sed 's/,/\t/g')
+# Create arrays from NETWORK_IDS and ZTSTATICIP (comma-delimited)
+# I learned a lot from https://stackoverflow.com/questions/10586153/how-to-split-a-string-into-an-array-in-bash
+readarray -td, NETWORK_IDS_ARRAY <<<"$NETWORK_IDS,"
+unset 'NETWORK_IDS_ARRAY[-1]'
+
+if [ -n "$ZTSTATICIP" ]; then
+  readarray -td, ZTSTATICIP_ARRAY <<<"$ZTSTATICIP,"
+  unset 'ZTSTATICIP_ARRAY[-1]'
+
+  # Assert that NETWORK_IDS_ARRAY and ZTSTATICIP_ARRAY have the same length
+  [ ${#NETWORK_IDS_ARRAY[@]} != ${#ZTSTATICIP_ARRAY[@]} ] && echo "Please specify the same number of elements in NETWORK_IDS and ZTSTATICIP" && exit 1
+else
+  # Set ZTSTATICIP_ARRAY an empty array. All element accesses result in empty string.
+  readarray ZTSTATICIP_ARRAY < /dev/null
+fi
+
+for (( NETWORK_INDEX = 0; NETWORK_INDEX < ${#NETWORK_IDS_ARRAY[@]}; NETWORK_INDEX++ ))
 do
+  NETWORK_ID=${NETWORK_IDS_ARRAY[NETWORK_INDEX]}
+  ZTSTATICIP_FOR_NETWORK=${ZTSTATICIP_ARRAY[NETWORK_INDEX]}
+
+  echo NETWORK_ID $NETWORK_ID
+  echo ZTSTATICIP_FOR_NETWORK $ZTSTATICIP_FOR_NETWORK
+  echo ---
+
   # Remove all nodes with this hostname from zerotier (avoid ip collisions)
   NODE_IDS=$( curl -X GET \
       -H "Authorization: Bearer $ZTAUTHTOKEN" \
@@ -56,9 +79,9 @@ do
   done
   echo "Zerotier successfuly joined by $HOST_ID"
 
-  if [ -n "$ZTSTATICIP" ]; then
-    CURR_IPS=$( curl -X GET -H "Authorization: Bearer $ZTAUTHTOKEN" https://api.zerotier.com/api/v1/network/$NETWORK_ID/member/$HOST_ID | jq ".config.ipAssignments" | jq ". += [\"$ZTSTATICIP\"]")
-    echo "Assigning static ip $ZTSTATICIP to $HOST_ID and reauthenticating"
+  if [ -n "$ZTSTATICIP_FOR_NETWORK" ]; then
+    CURR_IPS=$( curl -X GET -H "Authorization: Bearer $ZTAUTHTOKEN" https://api.zerotier.com/api/v1/network/$NETWORK_ID/member/$HOST_ID | jq ".config.ipAssignments" | jq ". += [\"$ZTSTATICIP_FOR_NETWORK\"]")
+    echo "Assigning static ip $ZTSTATICIP_FOR_NETWORK to $HOST_ID and reauthenticating"
     curl -s -XPOST \
         -H "Authorization: Bearer $ZTAUTHTOKEN" \
         -d "{\"config\":{\"ipAssignments\":$CURR_IPS,\"authorized\":true}}" \
