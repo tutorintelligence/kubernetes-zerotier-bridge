@@ -1,4 +1,7 @@
 #!/bin/bash
+# from https://github.com/leunamnauj/kubernetes-zerotier-bridge/blob/d5c847a45df49a3817f214081808a36779f78072/Dockerfile
+
+set -ex
 
 #zerotier-one
 supervisord -c /etc/supervisor/supervisord.conf
@@ -25,10 +28,6 @@ for (( NETWORK_INDEX = 0; NETWORK_INDEX < ${#NETWORK_IDS_ARRAY[@]}; NETWORK_INDE
 do
   NETWORK_ID=${NETWORK_IDS_ARRAY[NETWORK_INDEX]}
   ZTSTATICIP_FOR_NETWORK=${ZTSTATICIP_ARRAY[NETWORK_INDEX]}
-
-  echo NETWORK_ID $NETWORK_ID
-  echo ZTSTATICIP_FOR_NETWORK $ZTSTATICIP_FOR_NETWORK
-  echo ---
 
   # Remove all nodes with this hostname from zerotier (avoid ip collisions)
   NODE_IDS=$( curl -X GET \
